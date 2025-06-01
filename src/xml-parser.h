@@ -1,5 +1,5 @@
-#ifndef XML_PARSER_H
-#define XML_PARSER_H
+#ifndef __XML_PARSER__
+#define __XML_PARSER__
 
 typedef struct XMLAttribute {
     char *name;
@@ -68,4 +68,4 @@ XMLElement* xml_element_find_child_by_name(XMLElement *start_element, const char
 XMLElement* xml_element_find_descendant_or_self_by_name(XMLElement *start_element, const char *tag_name);
 
 
-#endif // XML_PARSER_H
+#endif // __XML_PARSER__
