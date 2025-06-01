@@ -47,25 +47,46 @@ void xml_unload(XMLFile *file_struct);
 /**
  * @brief search an XMLElement (only children) given its name
  * 
- * @param current_element The structure where the function will start to search its children
+ * @param start_element The structure where the function will start to search its children
  * @param tag_name The name of the tag to search
  * 
  * @return A pointer to a dynamically allocated XMLElement that has the tag_name as name
  *         or NULL if theres isnt a XMLElement that has tag_name as name
  */
-XMLElement* xml_element_find_child_by_name(XMLElement *start_element, const char *tag_name);
+XMLElement* xml_element_get_child(XMLElement *start_element, const char *tag_name);
+
+/**
+ * @brief get child element of current_element from its name
+ * 
+ * @param start_element The structure where the function will start to search its children
+ * @param tag_name The name of the tag to search
+ * 
+ * @return A pointer to a dynamically allocated XMLElement that has the tag_name as name
+ *         or NULL if theres isnt a XMLElement that has tag_name as name
+ */
+XMLElement* xml_element_get_child(XMLElement *start_element, const char *tag_name);
+
+/**
+ * @brief get an attribute from an XMLElement given the attr_name
+ * 
+ * @param current_element The structure where the function will start to search its children
+ * @param attr_name The name of the attribute to search
+ * 
+ * @return A pointer to a dynamically allocated XMLAttribute that has the attr_name as name
+ *         or NULL if theres isnt a XMLAttribute that has attr_name as name
+ */
+XMLAttribute* xml_attribute_get(XMLElement *current_element, const char *attr_name);
 
 
 /**
- * @brief same as xml_element_find_child_by_name but searches the element ITSELF and then its children
+ * @brief get the value of an attribute given the attr_name
  * 
  * @param current_element The structure where the function will start to search its children
- * @param tag_name The name of the tag to search
+ * @param attr_name The name of the attribute to search
  * 
- * @return A pointer to a dynamically allocated XMLElement that has the tag_name as name
- *         or NULL if theres isnt a XMLElement that has tag_name as name
+ * @return A pointer to a dynamically allocated char that references the attr_name value as name
+ *         or NULL if theres isnt a XMLAttribute that has attr_name as name
  */
-XMLElement* xml_element_find_descendant_or_self_by_name(XMLElement *start_element, const char *tag_name);
-
+char* xml_attribute_get_value(XMLElement *current_element, const char *attr_name);
 
 #endif // __XML_PARSER__

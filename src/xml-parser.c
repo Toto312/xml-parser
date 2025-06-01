@@ -488,7 +488,7 @@ XMLElement* find_element_by_name_recursive(XMLElement *current_element, const ch
     return NULL;
 }
 
-XMLElement* xml_element_find_child_by_name(XMLElement *start_element, const char *tag_name) {
+XMLElement* xml_element_get_child(XMLElement *start_element, const char *tag_name) {
     if (start_element == NULL || tag_name == NULL) {
         return NULL;
     }
@@ -504,6 +504,27 @@ XMLElement* xml_element_find_child_by_name(XMLElement *start_element, const char
     return NULL;
 }
 
-XMLElement* xml_element_find_descendant_or_self_by_name(XMLElement *start_element, const char *tag_name) {
-    return find_element_by_name_recursive(start_element, tag_name);
+XMLAttribute* xml_attribute_get(XMLElement *current_element, const char *attr_name) {
+    if (current_element == NULL || attr_name == NULL) {
+        return NULL;
+    }
+
+    XMLAttribute *child = current_element->attributes;
+    while (child != NULL) {
+        if(strcmp(child->name, attr_name) == 0) {
+            return child;
+        }
+
+        child = child->next;
+    }
+
+    return NULL;
+}
+
+char* xml_attribute_get_value(XMLElement *current_element, const char *attr_name) {
+    XMLAttribute* attribute = xml_attribute_get(current_element,attr_name);
+    if(attribute != NULL) {
+        return attribute->value;
+    }
+    return NULL;
 }
