@@ -281,7 +281,7 @@ XMLElement *parse_xml_element(char **cursor, XMLElement* parent_element) {
                             return NULL;
                         }
                         current_pos = comment_end + 3; 
-                        continue; // Go back to look for next child/text/closing tag
+                        continue; // go back to look for next child/text/closing tag
                     }
                     else if (strncmp(current_pos, "<![CDATA[", 9) == 0) {
                         current_pos += 9;
@@ -301,12 +301,7 @@ XMLElement *parse_xml_element(char **cursor, XMLElement* parent_element) {
                         *cursor = current_pos;
                         return NULL;
                     }
-                } else { 
-                    // Must be a child element
-                    // If there was text before this child element, it should have been processed.
-                    // This is where parsing text content needs to be carefully integrated.
-                    // For now, let's assume no mixed content or parse text first.
-
+                } else {
                     XMLElement *child = parse_xml_element(&current_pos, element); // Recursive call
                     if (!child) {
                         fprintf(stderr, "Error parsing child element of %s.\n", element->name);
@@ -322,11 +317,6 @@ XMLElement *parse_xml_element(char **cursor, XMLElement* parent_element) {
                     last_child = child;
                 }
             } else { 
-                // Text Content
-                // This is where you'd implement text content parsing.
-                // The text starts at `temp_pos_before_content` (if no leading whitespace from there)
-                // or `current_pos` if whitespace was skipped.
-                // It ends just before the next '<'.
                 char *text_start = temp_pos_before_content; 
                 char *text_end = current_pos; 
 
@@ -339,8 +329,6 @@ XMLElement *parse_xml_element(char **cursor, XMLElement* parent_element) {
                     // TODO: Trim trailing whitespace from text if desired
                     // TODO: Handle XML entities like &, <, etc. in text
                     if (element->text_content) {
-                        // Append to existing text (e.g. if mixed with comments)
-                        // This gets complicated: you'd need realloc
                         fprintf(stderr, "Warning: Multiple text nodes or mixed content not fully supported yet, overwriting text for %s.\n", element->name);
                         free(element->text_content);
                     }
@@ -484,12 +472,10 @@ XMLElement* find_element_by_name_recursive(XMLElement *current_element, const ch
         return NULL;
     }
 
-    // 1. Check the current element itself
     if (current_element->name != NULL && strcmp(current_element->name, tag_name) == 0) {
         return current_element; // Found it!
     }
 
-    // 2. Recursively search children
     XMLElement *child = current_element->children;
     while (child != NULL) {
         XMLElement *found_in_child = find_element_by_name_recursive(child, tag_name);
@@ -499,7 +485,6 @@ XMLElement* find_element_by_name_recursive(XMLElement *current_element, const ch
         child = child->next_sibling;
     }
 
-    // 3. Not found in this element or its direct children's subtrees
     return NULL;
 }
 
