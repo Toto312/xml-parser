@@ -57,26 +57,51 @@ void xml_free_element(XMLElement* element) {
     xml_free_element_recursive(element); // we use recursion for now
 }
 
+void ignore_values(char **cursor, int values[], int values_size) {
+    if (cursor == NULL || *cursor == NULL || **cursor == '\0') {
+        return;
+    }
+
+    if (values_size <= 0) {
+        return;
+    }
+
+    while(**cursor != '\0') {
+        int exist_values = 0;
+        
+        for(int i = 0; i < values_size; i++) {
+            if(**cursor == values[i]) {
+                exist_values = 1;
+                break;
+            }
+        }
+
+        if(exist_values) {
+            (*cursor)++;
+        } else {
+            break;
+        }
+    }
+}
+
 // TODO: there could be functions that implement each part of the parsing so it doesnt have that much LOC
 // Also it doesnt handle CDATA
 XMLElement *parse_xml_element(char **cursor, XMLElement* parent_element) {
     char *current_pos = *cursor;
     
-    while(*current_pos == ' ' || *current_pos == '\n' || *current_pos == '\t' || *current_pos == '\r') {
-        current_pos++;
-    }
+    int skip_values[] = {' ', '\n', '\t', '\r'};
+
+    ignore_values(&current_pos,skip_values,sizeof(skip_values)/sizeof(skip_values[0]));
 
     if(*current_pos != '<') {
-        fprintf(stderr, "Error: Expected '<' to start an element.\n");
+        perror("Error: Expected '<' to start an element.\n");
         *cursor = current_pos; 
         return NULL;
     }
 
     current_pos++;
 
-    while(*current_pos == ' ' || *current_pos == '\n' || *current_pos == '\t' || *current_pos == '\r') {
-        current_pos++;
-    }
+    ignore_values(&current_pos,skip_values,sizeof(skip_values)/sizeof(skip_values[0]));
 
     char *name_start = current_pos;
     while(*current_pos && *current_pos != ' ' && *current_pos != '\t' && *current_pos != '\n' && *current_pos != '\r' && *current_pos != '>' && *current_pos != '/') {
@@ -85,14 +110,14 @@ XMLElement *parse_xml_element(char **cursor, XMLElement* parent_element) {
 
     long size_name = current_pos - name_start;
     if (size_name == 0) {
-        fprintf(stderr, "Error: Element name is empty.\n");
+        perror("Error: Element name is empty.\n");
         *cursor = current_pos;
         return NULL;
     }
     
     XMLElement *element = malloc(sizeof(XMLElement));
     if (!element) {
-        fprintf(stderr, "Malloc failed for XMLElement");
+        perror("Malloc failed for XMLElement");
         *cursor = current_pos;
         return NULL;
     }
@@ -112,6 +137,7 @@ XMLElement *parse_xml_element(char **cursor, XMLElement* parent_element) {
         *cursor = current_pos;
         return NULL;
     }
+
     strncpy(element->name, name_start, size_name);
     element->name[size_name] = '\0';
 
@@ -275,7 +301,7 @@ XMLElement *parse_xml_element(char **cursor, XMLElement* parent_element) {
                         current_pos += 4;
                         char *comment_end = strstr(current_pos, "-->");
                         if (!comment_end) {
-                            fprintf(stderr, "Error: Unterminated comment.\n");
+                            perror("Error: Unterminated comment.\n");
                             xml_free_element(element);
                             *cursor = current_pos;
                             return NULL;
@@ -287,7 +313,7 @@ XMLElement *parse_xml_element(char **cursor, XMLElement* parent_element) {
                         current_pos += 9;
                         char *cdata_end = strstr(current_pos, "]]>");
                         if (!cdata_end) {
-                            fprintf(stderr, "Error: Unterminated CDATA section.\n");
+                            perror("Error: Unterminated CDATA section.\n");
                             xml_free_element(element);
                             *cursor = current_pos;
                             return NULL;
@@ -296,7 +322,7 @@ XMLElement *parse_xml_element(char **cursor, XMLElement* parent_element) {
                         current_pos = cdata_end + 3; 
                         continue;
                     } else {
-                        fprintf(stderr, "Error: Unsupported XML construct starting with '<!'.\n");
+                        perror("Error: Unsupported XML construct starting with '<!'.\n");
                         xml_free_element(element);
                         *cursor = current_pos;
                         return NULL;
@@ -359,7 +385,7 @@ XMLElement *parse_xml_element(char **cursor, XMLElement* parent_element) {
 XMLFile *xml_load(const char *filepath) {
     XMLFile *file = malloc(sizeof(XMLFile));
     if(file == NULL) {
-        fprintf(stderr,"Could not allocate xml file\n");
+        perror("Could not allocate xml file\n");
         return NULL;
     }
     
@@ -369,77 +395,121 @@ XMLFile *xml_load(const char *filepath) {
     
     char *content = get_file_content(filepath);
     if(content == NULL) {
-        fprintf(stderr,"Could not open file\n");
+        perror("Could not open file\n");
         free(file);
         return NULL;
     }
 
     char *current_pos = content;
-    if (*current_pos == '<' && *(current_pos + 1) == '?') {
-        current_pos += 2; 
-        if (strncmp(current_pos, "xml", 3) == 0) {
-            current_pos += 3;
-
-            char *version_start = strstr(current_pos, "version=\"");
-            if (version_start) {
-                version_start += strlen("version=\"");
-                char *version_end = strchr(version_start, '\"');
-                if (version_end) {
-                    long size = version_end - version_start;
-                    if (size > 0) {
-                        file->version = malloc(size + 1);
-                        if (file->version) {
-                            strncpy(file->version, version_start, size);
-                            file->version[size] = '\0';
-                        } else {
-                            perror("Malloc failed for version");
-                        }
-                    }
-                    current_pos = version_end + 1;
-                } else {
-                    fprintf(stderr, "Malformed XML declaration: version string not terminated.\n");
-                }
-            } else {
-                fprintf(stderr, "XML declaration missing version.\n");
-            }
-
-            char *encoding_start = strstr(current_pos, "encoding=\"");
-            if (encoding_start) {
-                encoding_start += strlen("encoding=\"");
-                char *encoding_end = strchr(encoding_start, '\"');
-                if (encoding_end) {
-                    long size = encoding_end - encoding_start;
-                    if (size > 0) {
-                        file->encoding = malloc(size + 1);
-                        if (file->encoding) {
-                            strncpy(file->encoding, encoding_start, size);
-                            file->encoding[size] = '\0';
-                        } else {
-                            perror("Malloc failed for encoding");
-                        }
-                    }
-                    current_pos = encoding_end + 1;
-                } else {
-                    fprintf(stderr, "Malformed XML declaration: encoding string not terminated.\n");
-                }
-            }
-
-            char *pi_end = strstr(current_pos, "?>");
-            if (pi_end) {
-                current_pos = pi_end + 2;
-            } else {
-                fprintf(stderr, "Malformed XML declaration: PI not closed with ?>.\n");
-                free(content);
-                free(file->version);
-                free(file->encoding);
-                free(file);
-
-                return NULL;
-            }
-        } else {
-            fprintf(stderr, "Expected 'xml' after '<?' in PI.\n");
-        }
+    if (*current_pos != '<'|| *(current_pos + 1) != '?') {
+        perror("Expected <?");
+        free(content);
+        free(file);
+        return NULL;
     }
+
+    current_pos += 2; 
+
+    if (strncmp(current_pos, "xml", 3) != 0) {
+        perror("Expected 'xml' after '<?'\n");
+        free(content);
+        free(file);
+        return NULL;
+    }
+
+    current_pos += 3;
+
+    char *version_start = strstr(current_pos, "version=\"");
+    if (version_start == NULL) {
+        perror("XML declaration missing version.\n");
+        free(file);
+        free(content);
+        return NULL;
+    }
+
+    version_start += strlen("version=\"");
+
+    char *version_end = strchr(version_start, '\"');
+    if (version_end == NULL) {
+        perror("Malformed XML declaration: version string not terminated.\n");
+        free(file);
+        free(content);
+        return NULL;
+    }
+
+    long size = version_end - version_start;
+    if (size <= 0) {
+        perror("Malformed XML declaration: version string is missing.\n");
+        free(file);
+        free(content);
+        return NULL;
+    }
+
+    file->version = malloc(size + 1);
+    if (file->version == NULL) {
+        perror("Malloc failed for version\n");
+        free(file);
+        free(content);
+        return NULL;
+    }
+
+    strncpy(file->version, version_start, size);
+    file->version[size] = '\0';
+    current_pos = version_end + 1;
+
+    char *encoding_start = strstr(current_pos, "encoding=\"");
+    if (encoding_start == NULL) { 
+        perror("Malformed XML declaration: encoding string not started.\n");
+        free(content);
+        free(file->version);
+        free(file);
+        return NULL;
+    }
+
+    encoding_start += strlen("encoding=\"");
+
+    char *encoding_end = strchr(encoding_start, '\"');
+    if (encoding_end == NULL) {
+        perror("Malformed XML declaration: encoding string not terminated.\n");
+        free(content);
+        free(file->version);
+        free(file);
+        return NULL;
+    }
+
+    long encoding_size = encoding_end - encoding_start;
+    if (encoding_size <= 0) {
+        perror("Malformed XML declaration: encoding is missing.\n");
+        free(content);
+        free(file->version);
+        free(file);
+        return NULL;
+    }
+
+    file->encoding = malloc(encoding_size + 1);
+    if (file->encoding == NULL) {
+        perror("Malloc failed for encoding\n");
+        free(content);
+        free(file->version);
+        free(file);
+
+    }
+
+    strncpy(file->encoding, encoding_start, size);
+    file->encoding[size] = '\0';
+    current_pos = encoding_end + 1;
+
+    char *end = strstr(current_pos, "?>");
+    if (end == NULL) {
+        perror("Malformed XML declaration: not closed with ?>.\n");
+        free(content);
+        free(file->version);
+        free(file->encoding);
+        free(file);
+        return NULL;
+    }
+
+    current_pos = end + 2;
 
     file->root = parse_xml_element(&current_pos, NULL);
     free(content);
@@ -473,14 +543,14 @@ XMLElement* find_element_by_name_recursive(XMLElement *current_element, const ch
     }
 
     if (current_element->name != NULL && strcmp(current_element->name, tag_name) == 0) {
-        return current_element; // Found it!
+        return current_element;
     }
 
     XMLElement *child = current_element->children;
     while (child != NULL) {
         XMLElement *found_in_child = find_element_by_name_recursive(child, tag_name);
         if (found_in_child != NULL) {
-            return found_in_child; // Found in a descendant, propagate up
+            return found_in_child;
         }
         child = child->next_sibling;
     }
